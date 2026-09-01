@@ -10,6 +10,8 @@ Single-page reference and onboarding guide for [OmniWM](https://github.com/Barut
 
 Live search over every shortcut and CLI command, layout-aware filtering (Niri/Dwindle/Shared), and a short onboarding path for anyone new to tiling window managers.
 
+Verified against OmniWM [v0.6.4](https://github.com/BarutSRB/OmniWM/releases/tag/v0.6.4) · checked 2026-09-01.
+
 ![OmniWM Guide screenshot](./.github/assets/screenshot.png)
 
 ## Source data
