@@ -94,6 +94,14 @@ h2{font-size:22px;margin:0 0 6px;letter-spacing:-.01em}
 @media (max-width:720px){.mini-diagram{grid-template-columns:1fr}}
 
 /* ---- quick reference ---- */
+.task-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:22px 0 34px}
+@media (max-width:720px){.task-grid{grid-template-columns:1fr}}
+.task-card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.task-card .q{font-size:13.5px;font-weight:600;margin:0 0 10px;display:flex;align-items:center;gap:7px}
+.task-card .q::before{content:"?";display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:var(--accent-dim);color:var(--accent);font-size:11px;flex:none}
+.task-answer{display:flex;align-items:center;gap:8px;padding:6px 0}
+.task-answer:not(:last-child){border-bottom:1px dashed var(--line)}
+.task-answer .aname{color:var(--muted);font-size:11.5px;flex:1;min-width:0}
 .ref-controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:22px;position:sticky;top:57px;z-index:20;background:var(--bg);padding:10px 0}
 .chip{font-family:'JetBrains Mono',monospace;font-size:12px;padding:6px 12px;border-radius:20px;border:1px solid var(--line2);background:var(--panel);color:var(--muted);cursor:pointer;user-select:none}
 .chip[aria-pressed="true"]{background:var(--accent-dim);border-color:var(--accent);color:var(--accent)}
@@ -211,6 +219,9 @@ footer a{color:var(--muted2)}
   <section id="reference">
     <h2>Quick reference</h2>
     <p class="section-sub">All 87 actions OmniWM ships, filterable by layout engine. Type to search — matches action names, categories, shortcuts and CLI commands, including plain-language terms like "resize", "screen" or "snap". Unassigned actions show their <span class="mono">omniwmctl</span> equivalent instead of a blank.</p>
+
+    <h3 style="font-size:13px;margin:0 0 4px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em">Common tasks, answered directly</h3>
+    <div class="task-grid" id="task-grid"></div>
 
     <div class="ref-controls">
       <button class="chip" data-layout="all" aria-pressed="true">All</button>
@@ -424,6 +435,28 @@ function renderKbd(shortcut){
 
 function layoutClass(l){ return l.toLowerCase(); }
 
+// Shared shortcut/CLI rendering — used by both the full reference table and
+// the common-tasks cards, so "unassigned" handling only lives in one place.
+function buildAnswer(r){
+  const right = document.createElement('div');
+  right.className = 'right-col';
+  if (r.shortcut){
+    right.appendChild(renderKbd(r.shortcut));
+  } else {
+    const u = document.createElement('div');
+    u.className = 'unassigned';
+    u.textContent = 'Unassigned — bind in Settings > Hotkeys';
+    right.appendChild(u);
+  }
+  if (r.cli){
+    const cli = document.createElement('div');
+    cli.className = 'cli-line mono';
+    cli.textContent = r.cli;
+    right.appendChild(cli);
+  }
+  return right;
+}
+
 function buildRow(r, showCategory){
   const row = document.createElement('div');
   row.className = 'row';
@@ -455,29 +488,68 @@ function buildRow(r, showCategory){
   left.appendChild(dot);
   left.appendChild(txt);
 
-  const right = document.createElement('div');
-  right.className = 'right-col';
-  if (r.shortcut){
-    right.appendChild(renderKbd(r.shortcut));
-  } else {
-    const u = document.createElement('div');
-    u.className = 'unassigned';
-    u.textContent = 'Unassigned — bind in Settings > Hotkeys';
-    right.appendChild(u);
-  }
-  if (r.cli){
-    const cli = document.createElement('div');
-    cli.className = 'cli-line mono';
-    cli.textContent = r.cli;
-    right.appendChild(cli);
-  }
-
   row.appendChild(left);
-  row.appendChild(right);
+  row.appendChild(buildAnswer(r));
   return row;
 }
 
 const CATEGORY_ORDER = ["Workspace Management","Focus Navigation","Window Movement","Monitor Control","Layout Operations","Container and Column Management","Dwindle Group Navigation","Quake Terminal Internal Shortcuts"];
+
+// Curated "how do I X" quick-answer cards. Each references OMNIWM_ACTIONS
+// row id(s) by id — never duplicates shortcut/CLI text — so it can never
+// drift from the frozen data layer. Where Niri and Dwindle answer a task
+// differently, both ids are listed so both variants render on one card.
+const ACTIONS_BY_ID = Object.fromEntries(OMNIWM_ACTIONS.map(r => [r.id, r]));
+const TASKS = [
+  { q: "Move app to another workspace", ids: ["move-window-to-workspace-1-9"] },
+  { q: "Switch to another workspace", ids: ["switch-to-workspace-1-9"] },
+  { q: "Move app to another monitor/screen", ids: ["move-window-to-monitor"] },
+  { q: "Move whole workspace to another monitor", ids: ["move-workspace-to-monitor"] },
+  { q: "Nudge app bigger", ids: ["set-container-span", "grow-shrink-focused-window"], direction: "grow" },
+  { q: "Nudge app smaller", ids: ["set-container-span", "grow-shrink-focused-window"], direction: "shrink" },
+  { q: "Snap app to fullscreen", ids: ["toggle-fullscreen"] },
+  { q: "Float / un-tile a window", ids: ["toggle-floating-window"] },
+  { q: "Balance all window sizes", ids: ["balance-sizes"] },
+  { q: "See all windows at once", ids: ["toggle-overview"] },
+];
+function taskAnswerRow(id, direction){
+  const r = ACTIONS_BY_ID[id];
+  const wrap = document.createElement('div');
+  wrap.className = 'task-answer';
+  const dot = document.createElement('span');
+  dot.className = 'layout-dot ' + layoutClass(r.layout);
+  dot.title = r.layout;
+  const name = document.createElement('span');
+  name.className = 'aname';
+  name.textContent = r.action;
+  wrap.appendChild(dot);
+  wrap.appendChild(name);
+  // Some shortcuts (e.g. "Option + -/=") encode both grow and shrink in one
+  // string. On a directional task card, show only the symbol for this
+  // direction so the two cards aren't visually identical.
+  let answerRow = r;
+  if (direction && r.shortcut && r.shortcut.includes('-/=')){
+    const symbol = direction === 'grow' ? '=' : '-';
+    answerRow = Object.assign({}, r, { shortcut: r.shortcut.replace('-/=', symbol) });
+  }
+  wrap.appendChild(buildAnswer(answerRow));
+  return wrap;
+}
+function renderTasks(){
+  const grid = document.getElementById('task-grid');
+  for (const t of TASKS){
+    const card = document.createElement('div');
+    card.className = 'task-card';
+    const q = document.createElement('p');
+    q.className = 'q';
+    q.textContent = t.q;
+    card.appendChild(q);
+    // De-dupe ids (e.g. same row answers both bigger/smaller via -/+ args).
+    for (const id of [...new Set(t.ids)]) card.appendChild(taskAnswerRow(id, t.direction));
+    grid.appendChild(card);
+  }
+}
+renderTasks();
 
 let activeLayout = 'all';
 const resultsEl = document.getElementById('ref-results');
