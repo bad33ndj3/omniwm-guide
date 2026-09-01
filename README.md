@@ -10,6 +10,8 @@ Single-page reference and onboarding guide for [OmniWM](https://github.com/Barut
 
 Live search over every shortcut and CLI command, layout-aware filtering (Niri/Dwindle/Shared), and a short onboarding path for anyone new to tiling window managers.
 
+![OmniWM Guide screenshot](./.github/assets/screenshot.png)
+
 ## Source data
 
 All facts (shortcuts, CLI commands, config) are verified verbatim against the OmniWM repo/docs and kept as an OKF-spec knowledge bundle in [`okf/`](./okf), with the frozen dataset in [`data.js`](./data.js).
